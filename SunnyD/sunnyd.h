@@ -13,6 +13,12 @@ namespace SunnyD
 	extern HANDLE hWin;
 	extern bool reD;
 
+#ifdef _WIN64
+	const bool Win64 = true;
+#else
+	const bool Win64 = false;
+#endif
+
 	DWORD WINAPI UIThread(LPVOID Args);
 	DWORD WINAPI UpdateThread(LPVOID Args);
 	DWORD WINAPI WaitThread(LPVOID Args);

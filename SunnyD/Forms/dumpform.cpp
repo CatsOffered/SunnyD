@@ -66,7 +66,7 @@ LRESULT CDumpForm::WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam
 				{
 					MemInfo* info = (MemInfo*)m_mem->Param(item);
 					if (info->type == Mem_Write && info->pWriteCpy)
-						m_dis->SetLocation(info->pWriteCpy, info->dwSize);
+						m_dis->SetLocation(info);
 				}
 			}
 			m_mtx.unlock();

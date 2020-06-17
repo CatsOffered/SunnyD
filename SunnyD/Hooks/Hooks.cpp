@@ -102,7 +102,9 @@ NTSTATUS NTAPI Hooks::Hooked_NtCreateThreadEx(
             SunnyD::Update([info] { SunnyD::form->Dumps()->AddThread(info); });
         }
     }
-    return ((decltype(Hooks::Hooked_NtCreateThreadEx)*)hk_thred.GetOldCode())(
+	//if (GetProcessId(ProcessHandle) != GetCurrentProcessId())
+	//	MessageBoxA(0, __FUNCTION__, "Info", 0);
+	return ((decltype(Hooks::Hooked_NtCreateThreadEx)*)hk_thred.GetOldCode())(
         hThread, DesiredAccess, ObjectAttributes, ProcessHandle, lpStartAddress,
         lpParameter, Flags, StackZeroBits, SizeOfStackCommit, SizeOfStackReserve, lpBytesBuffer);
 }

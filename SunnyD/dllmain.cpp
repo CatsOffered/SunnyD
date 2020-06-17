@@ -1,8 +1,15 @@
+#define _CRT_SECURE_NO_WARNINGS
 #include "sunnyd.h"
 #include "Hooks/Hooks.h"
 
+
 void OnAttach(HMODULE hMod)
 {
+	AllocConsole();
+	freopen("conin$", "r", stdin);
+	freopen("conout$", "w", stdout);
+	freopen("conout$", "w", stderr);
+
     SunnyD::hInst = hMod;
     SunnyD::hThread = GetCurrentThread();
     SunnyD::hWin = CreateThread(0, 0, SunnyD::UIThread, 0, 0, 0);

@@ -1,5 +1,6 @@
 #include "sig.h"
 #include <TlHelp32.h>
+#include <cstdio>
 
 #define INRANGE(x,a,b)	(x >= a && x <= b) 
 #define getBits( x )	(INRANGE((x&(~0x20)),'A','F') ? ((x&(~0x20)) - 'A' + 0xa) : (INRANGE(x,'0','9') ? x - '0' : 0))
@@ -62,6 +63,70 @@ UINT_PTR Sig::FindCave(const char* Module, size_t Len)
 
 UINT_PTR Sig::FromModule(HMODULE Handle, const char* Pattern) {
 	return FindPattern(GetBaseOfCode(Handle), GetSizeOfCode(Handle), Pattern);
+}
+
+UINT_PTR Sig::GetBaseOfCode(HMODULE Module)
+{
+	PIMAGE_DOS_HEADER pDOSHeader = (PIMAGE_DOS_HEADER)Module;
+	PIMAGE_NT_HEADERS pNTHeaders = (PIMAGE_NT_HEADERS)(((UINT_PTR)Module) + pDOSHeader->e_lfanew);
+	return (UINT_PTR)Module + pNTHeaders->OptionalHeader.BaseOfCode;
+}
+DWORD Sig::GetSizeOfCode(HMODULE Module)
+{
+	PIMAGE_DOS_HEADER pDOSHeader = (PIMAGE_DOS_HEADER)Module;
+	PIMAGE_NT_HEADERS pNTHeaders = (PIMAGE_NT_HEADERS)(((UINT_PTR)Module) + pDOSHeader->e_lfanew);
+	return pNTHeaders->OptionalHeader.SizeOfCode;
+}
+
+const char* Sig::GetExportedName(UINT_PTR Func, DWORD pId)
+{
+	HMODULE mod = FindModule(Func, pId);
+	if (!mod)
+		return nullptr;
+
+	UINT_PTR local = 0;
+	wchar_t name[MAX_PATH];
+	if (GetModuleFileNameW(mod, name, MAX_PATH))
+		local = (UINT_PTR)LoadLibraryW(name); // Don't want unicode tripping this up
+	else
+		return nullptr;
+
+	// Now we can inspect this module in our own process, if it previously wasn't
+	UINT_PTR localfunc = (UINT_PTR)local + (Func - (UINT_PTR)mod);
+	if (localfunc == local)
+		return nullptr;
+
+	printf("Getting exports of %S\n", name);
+
+	auto dos = (IMAGE_DOS_HEADER*)local;
+	auto nt = (IMAGE_NT_HEADERS*)(local + dos->e_lfanew);
+
+	auto exp = (IMAGE_EXPORT_DIRECTORY*)(local + nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress);
+
+	UINT_PTR* funcs = (UINT_PTR*)(local + exp->AddressOfFunctions);
+	const char** names = (const char**)(local + exp->AddressOfNames);
+	WORD* ords = (WORD*)(local + exp->AddressOfNameOrdinals);
+	for (size_t i = 0; i < exp->NumberOfFunctions; i++)
+	{
+		UINT_PTR func = funcs[ords[i]] + local;
+		if (func == localfunc)
+		{
+			const char* name = names[i] + local;
+			printf("Func index %d (of %d): %s\n", i, exp->NumberOfNames, name);
+			return name;
+		}
+	}
+
+	return nullptr;
+}
+
+UINT_PTR Sig::GetCodeRegion(const char* Module, size_t* Len)
+{
+	HMODULE hmod = GetModuleHandle(Module);
+	if (!hmod)
+		return 0;
+	if (Len) *Len = GetSizeOfCode(hmod);
+	return GetBaseOfCode(hmod);
 }
 
 HMODULE Sig::FindModule(UINT_PTR Ptr, DWORD pId)
